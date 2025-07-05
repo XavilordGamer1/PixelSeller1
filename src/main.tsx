@@ -8,7 +8,7 @@ import { PayPalScriptProvider } from '@paypal/react-paypal-js';
 // Opciones iniciales para el script de PayPal
 const initialOptions = {
   clientId: "AYSaIR8CAV_VQTbA26fX8KG5uDfIT8Fk9gCLlw4YaCGKZZ3BiS8FvHZlfo_c7KZFLy7TYidL_h08ttuq", // ✅ Corregido
-  currency: "CAD",
+  currency: "USD",
   intent: "capture",
 };
 
