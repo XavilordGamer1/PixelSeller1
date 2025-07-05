@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@paypal/react-paypal-js": "^8.8.3",
     "@supabase/supabase-js": "^2.50.0",
     "axios": "^1.6.7",
     "dotenvs": "^1.0.5",
