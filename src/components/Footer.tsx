@@ -9,7 +9,7 @@ const Footer = () => {
           <div>
             <h3 className="text-lg font-semibold text-white mb-4">PixelCanvas</h3>
             <p className="text-sm leading-relaxed">
-              Declare your love anonymously 💌, tag your favourite graffiti 🎨, spark curiosity across social media 🌐, or showcase your brand’s logo right here — who knows, it might just become iconic! The pixel is yours… once you’ve claimed it, of course 😄.
+              Hi, Declare your love anonymously 💌, tag your favourite graffiti 🎨, spark curiosity across social media 🌐, or showcase your brand’s logo right here — who knows, it might just become iconic! The pixel is yours… once you’ve claimed it, of course 😄.
 
               ⚠️ Please note: Any offensive, explicit, or sexual content will be removed without refund and may be reported to our support team for further action.
             </p>
