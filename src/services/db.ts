@@ -67,8 +67,9 @@ export const initializePixelDatabase = async (): Promise<void> => {
   const pixels: Omit<PixelData, 'id'>[] = [];
 
   for (let i = 0; i < TOTAL_PIXELS; i++) {
-    const x = i % COLUMNS;
-    const y = Math.floor(i / COLUMNS);
+    // ✅ LÍNEAS CORREGIDAS
+    const x = (i % COLUMNS) + 1; // Coordenada X de 1 a 320
+    const y = Math.floor(i / COLUMNS) + 1; // Coordenada Y de 1 a 134
     pixels.push({
       x,
       y,
