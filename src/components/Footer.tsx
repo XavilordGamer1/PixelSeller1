@@ -16,17 +16,17 @@ const Footer = () => {
           </div>
           
           <div>
-            <h3 className="text-lg font-semibold text-white mb-4">Quick Links</h3>
+            {/* <h3 className="text-lg font-semibold text-white mb-4">Quick Links</h3>
             <ul className="space-y-2">
               <li><a href="/" className="hover:text-white transition-colors">Home</a></li>
               <li><a href="/selection" className="hover:text-white transition-colors">Buy Pixels</a></li>
               <li><a href="#" className="hover:text-white transition-colors">FAQ</a></li>
               <li><a href="#" className="hover:text-white transition-colors">Contact Us</a></li>
-            </ul>
+            </ul> */}
           </div>
           
           <div>
-            <h3 className="text-lg font-semibold text-white mb-4">Connect With Us</h3>
+            {/* <h3 className="text-lg font-semibold text-white mb-4">Connect With Us</h3>
             <div className="flex space-x-4 mb-4">
               <a href="#" className="text-gray-400 hover:text-white transition-colors">
                 <Twitter className="h-5 w-5" />
@@ -40,7 +40,7 @@ const Footer = () => {
             </div>
             <p className="text-sm">
               Sign up for our newsletter to get updates on newly purchased pixels.
-            </p>
+            </p> */}
           </div>
         </div>
         
