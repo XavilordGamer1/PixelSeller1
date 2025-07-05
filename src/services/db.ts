@@ -28,21 +28,42 @@ const COLUMNS = 320;
 const TOTAL_PIXELS = ROWS * COLUMNS;
 
 /**
- * ✅ FUNCIÓN OPTIMIZADA
- * Recupera SOLAMENTE los píxeles vendidos desde Supabase.
+ * ✅ FUNCIÓN CORREGIDA
+ * Recupera TODOS los píxeles desde Supabase usando paginación.
  */
 export const getAllPixels = async (): Promise<PixelData[]> => {
-  const { data, error } = await supabase
-    .from('pixels')
-    .select('*')
-    .eq('status', 'sold'); // <-- Pide solo los píxeles vendidos
+  const allPixels: PixelData[] = [];
+  const CHUNK_SIZE = 1000; // El límite por defecto de Supabase
+  let from = 0;
 
-  if (error) {
-    console.error('Error al obtener los píxeles vendidos:', error);
-    return [];
+  while (true) {
+    const { data, error } = await supabase
+      .from('pixels')
+      .select('*')
+      .range(from, from + CHUNK_SIZE - 1); // Pedimos un rango de 1000
+
+    if (error) {
+      console.error('Error al obtener los píxeles:', error);
+      return []; // Devuelve un array vacío en caso de error
+    }
+
+    if (data) {
+      allPixels.push(...data);
+    }
+
+    // Si la respuesta tiene menos de 1000 filas, significa que hemos llegado al final
+    if (!data || data.length < CHUNK_SIZE) {
+      break;
+    }
+
+    // Preparamos la siguiente petición
+    from += CHUNK_SIZE;
   }
+  
+  // Ordenamos los pixeles por su 'id' para asegurar el orden correcto en el grid
+  allPixels.sort((a, b) => a.id! - b.id!);
 
-  return data as PixelData[];
+  return allPixels as PixelData[];
 };
 
 

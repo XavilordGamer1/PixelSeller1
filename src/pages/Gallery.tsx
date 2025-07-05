@@ -1,68 +1,33 @@
 // src/pages/Gallery.tsx
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
+// import { Link } from 'react-router-dom';
 import PixelGridGallery from '../components/PixelGridGallery';
 import { fetchPixelData } from '../services/pixelService';
-import { PixelData } from '../services/db';
 
 const ROWS = 134;
 const COLUMNS = 320;
 const TOTAL_PIXELS = ROWS * COLUMNS;
 
-// Esta función crea la cuadrícula base con todos los píxeles como "disponibles"
-const createBaseGrid = (): PixelData[] => {
-  const baseGrid: PixelData[] = [];
-  for (let i = 0; i < TOTAL_PIXELS; i++) {
-    baseGrid.push({
-      id: i + 1, // Asumimos que los IDs son secuenciales de 1 a 42880
-      x: (i % COLUMNS) + 1,
-      y: Math.floor(i / COLUMNS) + 1,
-      status: 'available',
-      imageUrl: null,
-      owner: null,
-    });
-  }
-  return baseGrid;
-};
-
 const Gallery: React.FC = () => {
   const [loading, setLoading] = useState(true);
-  const [pixelData, setPixelData] = useState<PixelData[]>([]);
-  const [availableCount, setAvailableCount] = useState(TOTAL_PIXELS);
+  const [pixelData, setPixelData] = useState<any[]>([]);
 
-  const loadPixelData = useCallback(async () => {
-    setLoading(true);
+  const loadPixelData = async () => {
     try {
-      // 1. Crea la cuadrícula base en el navegador, es súper rápido.
-      const baseGrid = createBaseGrid();
-
-      // 2. Pide a Supabase SOLO los píxeles vendidos.
-      const soldPixels = await fetchPixelData();
-
-      // 3. Fusiona los datos
-      if (soldPixels.length > 0) {
-        const soldPixelsMap = new Map(soldPixels.map(p => [p.id, p]));
-        const finalGrid = baseGrid.map(p => soldPixelsMap.get(p.id!) || p);
-        setPixelData(finalGrid);
-      } else {
-        // Si no hay píxeles vendidos, solo muestra la cuadrícula base.
-        setPixelData(baseGrid);
-      }
-      
-      setAvailableCount(TOTAL_PIXELS - soldPixels.length);
-
+      const data = await fetchPixelData();
+      console.log("Pixel data loaded:", data);
+      setPixelData(data);
+      setLoading(false);
     } catch (error) {
       console.error("Failed to fetch pixel data:", error);
-      // En caso de error, muestra la cuadrícula base.
-      setPixelData(createBaseGrid());
-    } finally {
       setLoading(false);
     }
-  }, []);
+  };
 
   // Cargar la data al montar el componente.
   useEffect(() => {
     loadPixelData();
-  }, [loadPixelData]);
+  }, []);
 
   // Forzar la recarga cada vez que la ventana gane foco.
   useEffect(() => {
@@ -73,7 +38,15 @@ const Gallery: React.FC = () => {
 
     window.addEventListener("focus", handleFocus);
     return () => window.removeEventListener("focus", handleFocus);
-  }, [loadPixelData]);
+  }, []);
+
+  // Calcular el número de píxeles disponibles:
+  // Si hay datos, se cuentan aquellos con status "available".
+  // Si no hay data, se asume que TODOS están disponibles.
+  const availableCount =
+    pixelData.length > 0
+      ? pixelData.filter((p) => p.status === 'available').length
+      : TOTAL_PIXELS;
 
   return (
     <div className="min-h-screen bg-gray-900">
@@ -91,7 +64,7 @@ const Gallery: React.FC = () => {
           </div>
         ) : (
           <div className="w-full h-full overflow-auto">
-            <PixelGridGallery pixelData={pixelData} rows={ROWS} columns={COLUMNS} />
+            <PixelGridGallery pixelData={pixelData} rows={134} columns={320} />
           </div>
         )}
       </div>
