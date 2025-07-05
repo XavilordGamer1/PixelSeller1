@@ -28,20 +28,44 @@ const COLUMNS = 320;
 const TOTAL_PIXELS = ROWS * COLUMNS;
 
 /**
- * Recupera todos los píxeles desde Supabase.
+ * ✅ FUNCIÓN CORREGIDA
+ * Recupera TODOS los píxeles desde Supabase usando paginación.
  */
 export const getAllPixels = async (): Promise<PixelData[]> => {
-  const { data, error } = await supabase
-    .from('pixels')
-    .select('*');
+  const allPixels: PixelData[] = [];
+  const CHUNK_SIZE = 1000; // El límite por defecto de Supabase
+  let from = 0;
 
-  if (error) {
-    console.error('Error al obtener los píxeles:', error);
-    return [];
+  while (true) {
+    const { data, error } = await supabase
+      .from('pixels')
+      .select('*')
+      .range(from, from + CHUNK_SIZE - 1); // Pedimos un rango de 1000
+
+    if (error) {
+      console.error('Error al obtener los píxeles:', error);
+      return []; // Devuelve un array vacío en caso de error
+    }
+
+    if (data) {
+      allPixels.push(...data);
+    }
+
+    // Si la respuesta tiene menos de 1000 filas, significa que hemos llegado al final
+    if (!data || data.length < CHUNK_SIZE) {
+      break;
+    }
+
+    // Preparamos la siguiente petición
+    from += CHUNK_SIZE;
   }
+  
+  // Ordenamos los pixeles por su 'id' para asegurar el orden correcto en el grid
+  allPixels.sort((a, b) => a.id! - b.id!);
 
-  return data as PixelData[];
+  return allPixels as PixelData[];
 };
+
 
 /**
  * Inserta todos los píxeles iniciales en la base de datos si no existen.
@@ -67,9 +91,8 @@ export const initializePixelDatabase = async (): Promise<void> => {
   const pixels: Omit<PixelData, 'id'>[] = [];
 
   for (let i = 0; i < TOTAL_PIXELS; i++) {
-    // ✅ LÍNEAS CORREGIDAS
-    const x = (i % COLUMNS) + 1; // Coordenada X de 1 a 320
-    const y = Math.floor(i / COLUMNS) + 1; // Coordenada Y de 1 a 134
+    const x = (i % COLUMNS) + 1;
+    const y = Math.floor(i / COLUMNS) + 1;
     pixels.push({
       x,
       y,
