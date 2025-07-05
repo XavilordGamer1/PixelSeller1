@@ -26,7 +26,7 @@ const Payment = () => {
         {
           description: `Compra de ${selectedPixels.length} pixeles en PixelCanvas`,
           amount: {
-            currency_code: "USD", // ✅ CORRECCIÓN 1
+            currency_code: "USD",
             value: totalAmount,
           },
         },
@@ -35,28 +35,40 @@ const Payment = () => {
   };
 
   const onApprove = async (_data: OnApproveData, actions: any) => {
-    // ✅ CORRECCIÓN 2: Validar que actions.order exista
     if (!actions.order) {
-        throw new Error("Order actions are not available");
+      throw new Error("Order actions are not available");
     }
 
-    const order = await actions.order.capture();
-    console.log("Pago completado!", order);
-
     try {
-      // ✅ CORRECCIÓN 3: Mantener todas las propiedades del píxel
-      const updatedPixels = selectedPixels.map((pixel: any) => ({
-        ...pixel, // Mantiene x, y, imageUrl, etc.
-        status: 'sold',
-        owner: 'demoUser'
-      }));
-      await updatePixelContent(updatedPixels);
-      
-      setPaymentCompleted(true);
-      navigate('/pixel-content');
+      // 1. Se intenta capturar el pago.
+      const order = await actions.order.capture();
+      console.log("Respuesta de captura de orden:", order);
+
+      // ✅ LA CORRECCIÓN MÁS IMPORTANTE ESTÁ AQUÍ
+      // 2. Verificamos que el estado de la orden sea 'COMPLETED'.
+      if (order.status === 'COMPLETED') {
+        console.log("¡El pago fue completado exitosamente!");
+        
+        // 3. Solo si está completado, actualizamos la base de datos y navegamos.
+        const updatedPixels = selectedPixels.map((pixel: any) => ({
+          ...pixel,
+          status: 'sold',
+          owner: 'demoUser'
+        }));
+        await updatePixelContent(updatedPixels);
+        
+        setPaymentCompleted(true);
+        navigate('/pixel-content');
+
+      } else {
+        // Si el estado no es 'COMPLETED', mostramos un error.
+        console.error("El pago no fue completado. Estado:", order.status);
+        alert("Tu pago no pudo ser procesado. Por favor, inténtalo de nuevo.");
+      }
+
     } catch (error) {
-      console.error("Error al actualizar los pixeles después del pago:", error);
-      alert("El pago fue exitoso, pero hubo un error al guardar tus píxeles. Por favor, contacta a soporte.");
+      console.error("Ocurrió un error al capturar el pago:", error);
+      alert("Tu pago no pudo ser procesado. Por favor, revisa tus fondos o contacta a soporte.");
     }
   };
 
