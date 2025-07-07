@@ -158,3 +158,41 @@ export const savePixelPurchase = async (
 
   return true;
 };
+
+/**
+ * --- NUEVA FUNCIÓN ---
+ * Registra una nueva compra en la tabla 'purchases'.
+ */
+export const logPurchase = async (
+  paypalOrderId: string,
+  pixelIds: number[]
+): Promise<boolean> => {
+  // Generar la fecha y hora en la zona horaria de Toronto
+  const torontoDate = new Date().toLocaleString("en-CA", {
+    timeZone: "America/Toronto",
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  });
+
+  const { error } = await supabase
+    .from('purchases')
+    .insert([{
+      paypal_order_id: paypalOrderId,
+      pixel_ids: pixelIds,
+      purchase_time_toronto: torontoDate,
+    }]);
+
+  if (error) {
+    console.error('Error al registrar la compra:', error);
+    // No bloqueamos el flujo si el log falla, pero lo registramos en consola.
+    return false;
+  }
+
+  console.log(`Compra registrada con PayPal Order ID: ${paypalOrderId}`);
+  return true;
+};

@@ -3,7 +3,8 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { usePixelContext } from '../context/PixelContext';
 import { ArrowLeft } from 'lucide-react';
-import { updatePixelContent } from '../services/pixelService';
+// MODIFICACIÓN: Importar logPurchase junto con updatePixelContent
+import { updatePixelContent, logPurchase } from '../services/pixelService';
 import { PayPalButtons, usePayPalScriptReducer } from '@paypal/react-paypal-js';
 import type { OnApproveData, CreateOrderData } from "@paypal/paypal-js";
 
@@ -44,19 +45,25 @@ const Payment = () => {
       const order = await actions.order.capture();
       console.log("Respuesta de captura de orden:", order);
 
-      // ✅ LA CORRECCIÓN MÁS IMPORTANTE ESTÁ AQUÍ
       // 2. Verificamos que el estado de la orden sea 'COMPLETED'.
       if (order.status === 'COMPLETED') {
         console.log("¡El pago fue completado exitosamente!");
         
-        // 3. Solo si está completado, actualizamos la base de datos y navegamos.
+        // --- MODIFICACIÓN ---
+        // 3. Registrar la compra en la base de datos antes de continuar.
+        const pixelIds = selectedPixels.map((p: any) => p.id);
+        // Usamos el ID de la orden de PayPal como identificador único.
+        await logPurchase(order.id, pixelIds);
+        
+        // 4. Solo si está completado, actualizamos la base de datos y navegamos.
         const updatedPixels = selectedPixels.map((pixel: any) => ({
           ...pixel,
           status: 'sold',
-          owner: 'demoUser'
+          owner: 'demoUser' // O el usuario real si tienes un sistema de autenticación
         }));
         await updatePixelContent(updatedPixels);
         
+        // 5. Marcamos el pago como completado y navegamos a la siguiente página.
         setPaymentCompleted(true);
         navigate('/pixel-content');
 

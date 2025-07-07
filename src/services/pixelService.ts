@@ -5,6 +5,7 @@ import {
   updatePixelContent as dbUpdatePixelContent,
   initializePixelDatabase,
   savePixelPurchase as dbSavePixelPurchase,
+  logPurchase as dbLogPurchase, // <-- MODIFICACIÓN: Importar la nueva función
 } from './db';
 
 /**
@@ -39,4 +40,17 @@ export const savePixelPurchase = async (
   owner: string
 ): Promise<boolean> => {
   return await dbSavePixelPurchase(pixel.id!, owner);
+};
+
+/**
+ * --- NUEVA FUNCIÓN AÑADIDA ---
+ * Registra los detalles de una compra en la base de datos.
+ * @param paypalOrderId El ID de la orden de PayPal.
+ * @param pixelIds Un array con los IDs de los píxeles comprados.
+ */
+export const logPurchase = async (
+  paypalOrderId: string,
+  pixelIds: number[]
+): Promise<boolean> => {
+  return await dbLogPurchase(paypalOrderId, pixelIds);
 };
