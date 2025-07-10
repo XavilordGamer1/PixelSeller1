@@ -1,12 +1,8 @@
 // src/components/Header.tsx
-// import React from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Grid, Image } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 
 const Header = () => {
   const navigate = useNavigate();
-  const location = useLocation();
-
 
   return (
     <header className="bg-white shadow-sm">
@@ -14,12 +10,18 @@ const Header = () => {
         <div className="flex flex-col md:flex-row md:items-center justify-between py-4">
           {/* Izquierda: Logo y título */}
           <div className="flex items-center mb-4 md:mb-0">
-            <Grid className="h-8 w-8 text-blue-600 mr-2" />
+            {/* ESTA ES LA LÍNEA MODIFICADA */}
+            <img 
+              src="/tco-logo1.png" 
+              alt="TCOEC Logo" 
+              className="h-8 w-8 mr-2" 
+            />
             <Link to="/" className="text-2xl font-bold text-gray-800">
               PixelCanvas
             </Link>
           </div>
-          {/* Derecha: Solo muestra "Gallery" y el botón GET PIXELS */}
+
+          {/* Derecha: "Gallery" y el botón GET PIXELS */}
           <div className="flex items-center space-x-2">
             <Link
               to="/"
