@@ -1,5 +1,5 @@
-// import React from 'react';
-import { Github, Twitter, Instagram } from 'lucide-react';
+// src/components/Footer.tsx
+import { Facebook, Mail } from 'lucide-react';
 
 const Footer = () => {
   return (
@@ -16,31 +16,32 @@ const Footer = () => {
           </div>
           
           <div>
-            {/* <h3 className="text-lg font-semibold text-white mb-4">Quick Links</h3>
-            <ul className="space-y-2">
-              <li><a href="/" className="hover:text-white transition-colors">Home</a></li>
-              <li><a href="/selection" className="hover:text-white transition-colors">Buy Pixels</a></li>
-              <li><a href="#" className="hover:text-white transition-colors">FAQ</a></li>
-              <li><a href="#" className="hover:text-white transition-colors">Contact Us</a></li>
-            </ul> */}
+            {/* Espacio vacío para mantener el diseño de 3 columnas */}
           </div>
           
           <div>
-            {/* <h3 className="text-lg font-semibold text-white mb-4">Connect With Us</h3>
+            <h3 className="text-lg font-semibold text-white mb-4">Connect With Us</h3>
             <div className="flex space-x-4 mb-4">
-              <a href="#" className="text-gray-400 hover:text-white transition-colors">
-                <Twitter className="h-5 w-5" />
+              {/* --- ENLACE A FACEBOOK --- */}
+              <a 
+                href="https://www.facebook.com/share/1AxdbCXqG4/?mibextid=wwXIfr" 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="text-gray-400 hover:text-white transition-colors"
+                aria-label="Facebook"
+              >
+                <Facebook className="h-5 w-5" />
               </a>
-              <a href="#" className="text-gray-400 hover:text-white transition-colors">
-                <Instagram className="h-5 w-5" />
-              </a>
-              <a href="#" className="text-gray-400 hover:text-white transition-colors">
-                <Github className="h-5 w-5" />
+
+              {/* --- ENLACE A GMAIL CON TU CORREO --- */}
+              <a 
+                href="mailto:tcoecm@gmail.com"
+                className="text-gray-400 hover:text-white transition-colors"
+                aria-label="Email Support"
+              >
+                <Mail className="h-5 w-5" />
               </a>
             </div>
-            <p className="text-sm">
-              Sign up for our newsletter to get updates on newly purchased pixels.
-            </p> */}
           </div>
         </div>
         
