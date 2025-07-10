@@ -45,7 +45,7 @@ const Footer = () => {
         </div>
         
         <div className="border-t border-gray-700 mt-8 pt-6 text-sm text-center">
-          <p>&copy; {new Date().getFullYear()} PixelCanvas. All rights reserved.</p>
+          <p>&copy; {new Date().getFullYear()} TCOEC. All rights reserved.</p>
         </div>
       </div>
     </footer>
