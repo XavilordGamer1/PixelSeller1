@@ -1,7 +1,25 @@
 // src/components/Footer.tsx
-import { Facebook, Mail } from 'lucide-react';
+import { useState } from 'react'; // 1. IMPORTAR useState
+import { Facebook, Mail, Check } from 'lucide-react'; // 2. IMPORTAR el ícono Check
 
 const Footer = () => {
+  // 3. AÑADIR ESTADO para el mensaje de copiado
+  const [copyText, setCopyText] = useState('tcoecm@gmail.com');
+
+  // 4. CREAR FUNCIÓN para manejar la copia
+  const handleCopyEmail = () => {
+    navigator.clipboard.writeText('tcoecm@gmail.com').then(() => {
+      // Si la copia es exitosa
+      setCopyText('Copied!');
+      // Vuelve al texto original después de 2 segundos
+      setTimeout(() => {
+        setCopyText('tcoecm@gmail.com');
+      }, 2000);
+    }).catch(err => {
+      console.error('Failed to copy: ', err); // Manejo de errores
+    });
+  };
+
   return (
     <footer className="bg-gray-800 text-gray-300">
       <div className="container mx-auto px-4 py-8">
@@ -16,20 +34,24 @@ const Footer = () => {
           </div>
           
           <div>
-            {/* Espacio para futuros enlaces o información */}
             <h3 className="text-lg font-semibold text-white mb-4">Support</h3>
-            <div className="flex items-center space-x-3">
-               <Mail className="h-5 w-5 text-gray-400" />
-               <span className="text-gray-400 hover:text-white transition-colors">
-                 tcoecm@gmail.com
+            {/* 5. MODIFICAR la sección del correo para que sea un botón */}
+            <button
+              onClick={handleCopyEmail}
+              className="flex items-center space-x-3 group cursor-pointer"
+            >
+               <Mail className="h-5 w-5 text-gray-400 group-hover:text-white transition-colors" />
+               <span className="text-gray-400 group-hover:text-white transition-colors relative">
+                 {copyText}
+                 {/* Mostrar el ícono de Check cuando se copia */}
+                 {copyText === 'Copied!' && <Check className="h-5 w-5 text-green-400 absolute -right-6 top-0" />}
                </span>
-            </div>
+            </button>
           </div>
           
           <div>
             <h3 className="text-lg font-semibold text-white mb-4">Connect With Us</h3>
             <div className="flex space-x-4 mb-4">
-              {/* --- ENLACE A FACEBOOK --- */}
               <a 
                 href="https://www.facebook.com/share/1AxdbCXqG4/?mibextid=wwXIfr" 
                 target="_blank" 
