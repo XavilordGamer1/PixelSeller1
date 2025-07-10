@@ -16,7 +16,14 @@ const Footer = () => {
           </div>
           
           <div>
-            {/* Espacio vacío para mantener el diseño de 3 columnas */}
+            {/* Espacio para futuros enlaces o información */}
+            <h3 className="text-lg font-semibold text-white mb-4">Support</h3>
+            <div className="flex items-center space-x-3">
+               <Mail className="h-5 w-5 text-gray-400" />
+               <span className="text-gray-400 hover:text-white transition-colors">
+                 tcoecm@gmail.com
+               </span>
+            </div>
           </div>
           
           <div>
@@ -31,15 +38,6 @@ const Footer = () => {
                 aria-label="Facebook"
               >
                 <Facebook className="h-5 w-5" />
-              </a>
-
-              {/* --- ENLACE A GMAIL CON TU CORREO --- */}
-              <a 
-                href="mailto:tcoecm@gmail.com"
-                className="text-gray-400 hover:text-white transition-colors"
-                aria-label="Email Support"
-              >
-                <Mail className="h-5 w-5" />
               </a>
             </div>
           </div>
