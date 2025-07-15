@@ -17,7 +17,7 @@ const Header = () => {
               className="h-8 w-8 mr-2" 
             />
             <Link to="/" className="text-2xl font-bold text-gray-800">
-              PixelCanvas
+              thoughts wall
             </Link>
           </div>
 
