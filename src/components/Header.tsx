@@ -7,10 +7,11 @@ const Header = () => {
   return (
     <header className="bg-white shadow-sm">
       <div className="container mx-auto px-4">
+        {/* MODIFICACIÓN: Cambiar a flex-col en móvil y flex-row en pantallas medianas y grandes */}
         <div className="flex flex-col md:flex-row md:items-center justify-between py-4">
           {/* Izquierda: Logo y título */}
-          <div className="flex items-center mb-4 md:mb-0">
-            {/* ESTA ES LA LÍNEA MODIFICADA */}
+          {/* MODIFICACIÓN: Reducir el margen inferior en móvil */}
+          <div className="flex items-center justify-center md:justify-start mb-4 md:mb-0">
             <img 
               src="/tco-logo1.png" 
               alt="TCOEC Logo" 
@@ -22,7 +23,8 @@ const Header = () => {
           </div>
 
           {/* Derecha: "Gallery" y el botón GET PIXELS */}
-          <div className="flex items-center space-x-2">
+          {/* MODIFICACIÓN: Centrar los botones en móvil */}
+          <div className="flex items-center justify-center md:justify-end space-x-2">
             <Link
               to="/"
               className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100"
