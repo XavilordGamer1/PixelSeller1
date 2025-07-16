@@ -20,10 +20,12 @@ const PixelGrid: React.FC<PixelGridProps> = ({ pixelData, selectable, rows, colu
   const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(null);
   const [dragEnd, setDragEnd] = useState<{ x: number; y: number } | null>(null);
 
-  // Se mantiene tu función de dibujado original, ya que funciona como esperas.
-  const drawGrid = (ctx: CanvasRenderingContext2D) => {
+  // Se utiliza tu función de dibujado original para mantener la visualización exacta que prefieres.
+  useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
 
     const dpr = window.devicePixelRatio || 1;
     canvas.width = columns * BASE_CELL_SIZE * dpr;
@@ -42,18 +44,8 @@ const PixelGrid: React.FC<PixelGridProps> = ({ pixelData, selectable, rows, colu
           ctx.fillRect(x * BASE_CELL_SIZE, y * BASE_CELL_SIZE, BASE_CELL_SIZE, BASE_CELL_SIZE);
         } else if (pixel.status === 'sold') {
           if (selectable) {
-            ctx.fillStyle = '#A78BFA';
+            ctx.fillStyle = '#A78BFA'; // Púrpura para "Purchased" en la vista de selección
             ctx.fillRect(x * BASE_CELL_SIZE, y * BASE_CELL_SIZE, BASE_CELL_SIZE, BASE_CELL_SIZE);
-          } else {
-            if (pixel.imageUrl) {
-              const img = new Image();
-              img.src = pixel.imageUrl;
-              img.onload = () =>
-                ctx.drawImage(img, x * BASE_CELL_SIZE, y * BASE_CELL_SIZE, BASE_CELL_SIZE, BASE_CELL_SIZE);
-            } else {
-              ctx.fillStyle = '#60A5FA';
-              ctx.fillRect(x * BASE_CELL_SIZE, y * BASE_CELL_SIZE, BASE_CELL_SIZE, BASE_CELL_SIZE);
-            }
           }
         }
       }
@@ -73,9 +65,12 @@ const PixelGrid: React.FC<PixelGridProps> = ({ pixelData, selectable, rows, colu
       ctx.lineTo(columns * BASE_CELL_SIZE, y * BASE_CELL_SIZE);
       ctx.stroke();
     }
+    
+    // Azul para "Selected"
+    const selectionColor = "rgba(96, 165, 250, 0.6)"; 
+    ctx.fillStyle = selectionColor;
 
     if (!isDragging && selectedPixels.length > 0) {
-      ctx.fillStyle = "rgba(173, 216, 230, 0.4)";
       selectedPixels.forEach((cell) => {
         ctx.fillRect(cell.x * BASE_CELL_SIZE, cell.y * BASE_CELL_SIZE, BASE_CELL_SIZE, BASE_CELL_SIZE);
       });
@@ -86,27 +81,18 @@ const PixelGrid: React.FC<PixelGridProps> = ({ pixelData, selectable, rows, colu
       const maxX = Math.max(dragStart.x, dragEnd.x);
       const minY = Math.min(dragStart.y, dragEnd.y);
       const maxY = Math.max(dragStart.y, dragEnd.y);
-      ctx.fillStyle = "rgba(173, 216, 230, 0.4)";
       for (let row = minY; row <= maxY; row++) {
         for (let col = minX; col <= maxX; col++) {
           ctx.fillRect(col * BASE_CELL_SIZE, row * BASE_CELL_SIZE, BASE_CELL_SIZE, BASE_CELL_SIZE);
         }
       }
     }
-  };
+  }, [pixelData, isDragging, dragStart, dragEnd, selectedPixels, selectable, columns, rows]);
 
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    drawGrid(ctx);
-  }, [pixelData, isDragging, dragStart, dragEnd, selectedPixels, selectable]);
+  // --- LÓGICA DE MANEJADORES DE EVENTOS ---
 
-  // --- LÓGICA DE EVENTOS (AÑADIENDO SOPORTE TÁCTIL) ---
-
-  // Helper para obtener coordenadas desde cualquier tipo de evento
-  const getCellCoordinates = (clientX: number, clientY: number): { x: number; y: number } => {
+  // Función genérica para obtener coordenadas 0-based del canvas
+  const getCoordsFromEvent = (clientX: number, clientY: number): { x: number; y: number } => {
     const canvas = canvasRef.current;
     if (!canvas) return { x: 0, y: 0 };
     const rect = canvas.getBoundingClientRect();
@@ -114,23 +100,42 @@ const PixelGrid: React.FC<PixelGridProps> = ({ pixelData, selectable, rows, colu
     const y = Math.floor((clientY - rect.top) / BASE_CELL_SIZE);
     return { x, y };
   };
-  
-  const endSelection = (coords: { x: number; y: number }) => {
-    if (!isDragging || !dragStart) return;
-    
-    setIsDragging(false);
 
+  // Función genérica para iniciar la selección
+  const handleSelectionStart = (coords: { x: number; y: number }) => {
+    if (!selectable || selectedPixels.length > 0) return;
+    const candidatePixel = pixelData[coords.y * columns + coords.x];
+    if (candidatePixel?.status === 'available') {
+      setIsDragging(true);
+      setDragStart(coords);
+      setDragEnd(coords);
+    }
+  };
+
+  // Función genérica para mover la selección
+  const handleSelectionMove = (coords: { x: number; y: number }) => {
+    if (!isDragging) return;
+    setDragEnd(coords);
+  };
+
+  // Función genérica para finalizar la selección (usa tu lógica original)
+  const handleSelectionEnd = (coords: { x: number; y: number } | null) => {
+    if (!isDragging || !dragStart || !coords) {
+        setIsDragging(false); // Asegúrate de detener el arrastre incluso si algo falla
+        return;
+    };
+
+    setIsDragging(false);
     const minX = Math.min(dragStart.x, coords.x);
     const maxX = Math.max(dragStart.x, coords.x);
     const minY = Math.min(dragStart.y, coords.y);
     const maxY = Math.max(dragStart.y, coords.y);
-    
-    // Tu lógica original de validación y selección se mantiene intacta
+
     for (let row = minY; row <= maxY; row++) {
       for (let col = minX; col <= maxX; col++) {
         const candidatePixel = pixelData[row * columns + col];
-        if (candidatePixel && candidatePixel.status === "sold") {
-          console.warn("El bloque seleccionado contiene un píxel vendido. Selección cancelada.");
+        if (candidatePixel?.status === "sold") {
+          console.warn("Selección inválida.");
           setDragStart(null);
           setDragEnd(null);
           return;
@@ -141,10 +146,10 @@ const PixelGrid: React.FC<PixelGridProps> = ({ pixelData, selectable, rows, colu
     const newSelectionCandidates = [];
     for (let row = minY; row <= maxY; row++) {
       for (let col = minX; col <= maxX; col++) {
-        const candidate = { x: col, y: row, id: row * columns + col };
-        const candidatePixel = pixelData[candidate.id];
-        if (candidatePixel?.status === "available" && !selectedPixels.some(p => p.id === candidate.id)) {
-          newSelectionCandidates.push(candidate);
+        const id = row * columns + col;
+        const candidatePixel = pixelData[id];
+        if (candidatePixel?.status === "available") {
+          newSelectionCandidates.push({ x: col, y: row, id: candidatePixel.id });
         }
       }
     }
@@ -154,67 +159,45 @@ const PixelGrid: React.FC<PixelGridProps> = ({ pixelData, selectable, rows, colu
     setDragEnd(null);
   };
 
-  // --- Manejadores de Mouse (usan tu lógica original) ---
-  const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!selectable || selectedPixels.length > 0) return;
-    const coords = getCellCoordinates(e.clientX, e.clientY);
-    const candidatePixel = pixelData[coords.y * columns + coords.x];
-    if (candidatePixel?.status === "available") {
-      setIsDragging(true);
-      setDragStart(coords);
-      setDragEnd(coords);
-    }
-  };
+  // --- Manejadores de eventos específicos ---
 
-  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!isDragging) return;
-    setDragEnd(getCellCoordinates(e.clientX, e.clientY));
-  };
+  const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => handleSelectionStart(getCoordsFromEvent(e.clientX, e.clientY));
+  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => handleSelectionMove(getCoordsFromEvent(e.clientX, e.clientY));
+  const handleMouseUp = (e: React.MouseEvent<HTMLCanvasElement>) => handleSelectionEnd(getCoordsFromEvent(e.clientX, e.clientY));
+  const handleMouseLeave = () => handleSelectionEnd(dragEnd); // Usa el último punto conocido si el mouse se va
 
-  const handleMouseUp = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    endSelection(getCellCoordinates(e.clientX, e.clientY));
-  };
-
-  // --- NUEVOS MANEJADORES TÁCTILES ---
   const handleTouchStart = (e: React.TouchEvent<HTMLCanvasElement>) => {
-    e.preventDefault(); // Previene el zoom/scroll del navegador
-    const touch = e.touches[0];
-    if (!selectable || selectedPixels.length > 0) return;
-    const coords = getCellCoordinates(touch.clientX, touch.clientY);
-    const candidatePixel = pixelData[coords.y * columns + coords.x];
-    if (candidatePixel?.status === "available") {
-      setIsDragging(true);
-      setDragStart(coords);
-      setDragEnd(coords);
-    }
+    e.preventDefault();
+    handleSelectionStart(getCoordsFromEvent(e.touches[0].clientX, e.touches[0].clientY));
   };
-  
+
   const handleTouchMove = (e: React.TouchEvent<HTMLCanvasElement>) => {
     e.preventDefault();
-    if (!isDragging) return;
-    const touch = e.touches[0];
-    setDragEnd(getCellCoordinates(touch.clientX, touch.clientY));
+    handleSelectionMove(getCoordsFromEvent(e.touches[0].clientX, e.touches[0].clientY));
   };
-
+  
   const handleTouchEnd = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    e.preventDefault();
     const touch = e.changedTouches[0];
-    endSelection(getCellCoordinates(touch.clientX, touch.clientY));
+    if (touch) {
+      handleSelectionEnd(getCoordsFromEvent(touch.clientX, touch.clientY));
+    } else {
+      handleSelectionEnd(dragEnd); // Fallback si no se puede obtener el último toque
+    }
   };
 
   return (
-    // Se añade `touch-none` para mejorar la experiencia táctil
-    <div className="w-full h-full bg-white touch-none"> 
+    <div className="w-full h-full bg-white touch-none">
       <canvas
         ref={canvasRef}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
-        // Se añaden los nuevos manejadores táctiles
+        onMouseLeave={handleMouseLeave}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
-        onTouchCancel={handleTouchEnd} // Por si el gesto es cancelado
+        onTouchCancel={handleTouchEnd}
         style={{
           width: `${columns * BASE_CELL_SIZE}px`,
           height: `${rows * BASE_CELL_SIZE}px`,
