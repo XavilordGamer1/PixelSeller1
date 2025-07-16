@@ -1,4 +1,5 @@
 // src/components/PixelGrid.tsx
+
 import React, { useRef, useEffect, useState } from 'react';
 import { usePixelContext } from '../context/PixelContext';
 import { PixelData } from '../services/db';
@@ -10,7 +11,7 @@ interface PixelGridProps {
   columns: number;
 }
 
-const BASE_CELL_SIZE = 10; // cada celda mide 10px x 10px
+const BASE_CELL_SIZE = 10;
 
 const PixelGrid: React.FC<PixelGridProps> = ({ pixelData, selectable, rows, columns }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -20,19 +21,33 @@ const PixelGrid: React.FC<PixelGridProps> = ({ pixelData, selectable, rows, colu
   const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(null);
   const [dragEnd, setDragEnd] = useState<{ x: number; y: number } | null>(null);
 
-  // Se utiliza tu función de dibujado original para mantener la visualización exacta que prefieres.
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
+    // --- MODIFICACIÓN CLAVE ---
+    // 1. Define el tamaño del bitmap SIN el DPR.
+    const canvasWidth = columns * BASE_CELL_SIZE;
+    const canvasHeight = rows * BASE_CELL_SIZE;
+    canvas.width = canvasWidth;
+    canvas.height = canvasHeight;
+    
+    // 2. Ajusta el tamaño de visualización del canvas con CSS.
+    //    Esto ya lo tenías bien en el 'style' del return.
+
+    // 3. Escala el contexto de dibujado por DPR para mantener la nitidez.
     const dpr = window.devicePixelRatio || 1;
-    canvas.width = columns * BASE_CELL_SIZE * dpr;
-    canvas.height = rows * BASE_CELL_SIZE * dpr;
-    ctx.resetTransform();
-    ctx.scale(dpr, dpr);
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.resetTransform(); // Resetea transformaciones previas
+    ctx.scale(dpr, dpr); // Escala todo lo que dibujes a partir de ahora
+    ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+
+    // Ajusta el tamaño de la celda para el dibujado (ya no necesita el DPR)
+    const cellSize = BASE_CELL_SIZE;
+
+    // El resto del código de dibujado permanece casi igual,
+    // pero ahora opera en un canvas de tamaño base que luego se escala.
 
     for (let y = 0; y < rows; y++) {
       for (let x = 0; x < columns; x++) {
@@ -41,11 +56,11 @@ const PixelGrid: React.FC<PixelGridProps> = ({ pixelData, selectable, rows, colu
         if (!pixel) continue;
         if (pixel.status === 'available') {
           ctx.fillStyle = '#E5E7EB';
-          ctx.fillRect(x * BASE_CELL_SIZE, y * BASE_CELL_SIZE, BASE_CELL_SIZE, BASE_CELL_SIZE);
+          ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
         } else if (pixel.status === 'sold') {
           if (selectable) {
-            ctx.fillStyle = '#A78BFA'; // Púrpura para "Purchased" en la vista de selección
-            ctx.fillRect(x * BASE_CELL_SIZE, y * BASE_CELL_SIZE, BASE_CELL_SIZE, BASE_CELL_SIZE);
+            ctx.fillStyle = '#A78BFA';
+            ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
           }
         }
       }
@@ -55,24 +70,23 @@ const PixelGrid: React.FC<PixelGridProps> = ({ pixelData, selectable, rows, colu
     ctx.lineWidth = 0.5;
     for (let x = 0; x <= columns; x++) {
       ctx.beginPath();
-      ctx.moveTo(x * BASE_CELL_SIZE, 0);
-      ctx.lineTo(x * BASE_CELL_SIZE, rows * BASE_CELL_SIZE);
+      ctx.moveTo(x * cellSize, 0);
+      ctx.lineTo(x * cellSize, rows * cellSize);
       ctx.stroke();
     }
     for (let y = 0; y <= rows; y++) {
       ctx.beginPath();
-      ctx.moveTo(0, y * BASE_CELL_SIZE);
-      ctx.lineTo(columns * BASE_CELL_SIZE, y * BASE_CELL_SIZE);
+      ctx.moveTo(0, y * cellSize);
+      ctx.lineTo(columns * cellSize, y * cellSize);
       ctx.stroke();
     }
     
-    // Azul para "Selected"
     const selectionColor = "rgba(96, 165, 250, 0.6)"; 
     ctx.fillStyle = selectionColor;
 
     if (!isDragging && selectedPixels.length > 0) {
       selectedPixels.forEach((cell) => {
-        ctx.fillRect(cell.x * BASE_CELL_SIZE, cell.y * BASE_CELL_SIZE, BASE_CELL_SIZE, BASE_CELL_SIZE);
+        ctx.fillRect(cell.x * cellSize, cell.y * cellSize, cellSize, cellSize);
       });
     }
 
@@ -83,25 +97,32 @@ const PixelGrid: React.FC<PixelGridProps> = ({ pixelData, selectable, rows, colu
       const maxY = Math.max(dragStart.y, dragEnd.y);
       for (let row = minY; row <= maxY; row++) {
         for (let col = minX; col <= maxX; col++) {
-          ctx.fillRect(col * BASE_CELL_SIZE, row * BASE_CELL_SIZE, BASE_CELL_SIZE, BASE_CELL_SIZE);
+          ctx.fillRect(col * cellSize, row * cellSize, cellSize, cellSize);
         }
       }
     }
+    // La dependencia de 'dpr' no es estrictamente necesaria aquí, pero no hace daño.
   }, [pixelData, isDragging, dragStart, dragEnd, selectedPixels, selectable, columns, rows]);
 
-  // --- LÓGICA DE MANEJADORES DE EVENTOS ---
-
-  // Función genérica para obtener coordenadas 0-based del canvas
+  // --- El resto de tus manejadores de eventos están correctos y no necesitan cambios ---
+  
   const getCoordsFromEvent = (clientX: number, clientY: number): { x: number; y: number } => {
     const canvas = canvasRef.current;
     if (!canvas) return { x: 0, y: 0 };
     const rect = canvas.getBoundingClientRect();
-    const x = Math.floor((clientX - rect.left) / BASE_CELL_SIZE);
-    const y = Math.floor((clientY - rect.top) / BASE_CELL_SIZE);
+    
+    // --- MODIFICACIÓN: Ajustar coordenadas al tamaño de CSS del canvas ---
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const canvasX = (clientX - rect.left) * scaleX;
+    const canvasY = (clientY - rect.top) * scaleY;
+    
+    const x = Math.floor(canvasX / BASE_CELL_SIZE);
+    const y = Math.floor(canvasY / BASE_CELL_SIZE);
+    
     return { x, y };
   };
 
-  // Función genérica para iniciar la selección
   const handleSelectionStart = (coords: { x: number; y: number }) => {
     if (!selectable || selectedPixels.length > 0) return;
     const candidatePixel = pixelData[coords.y * columns + coords.x];
@@ -112,16 +133,14 @@ const PixelGrid: React.FC<PixelGridProps> = ({ pixelData, selectable, rows, colu
     }
   };
 
-  // Función genérica para mover la selección
   const handleSelectionMove = (coords: { x: number; y: number }) => {
     if (!isDragging) return;
     setDragEnd(coords);
   };
 
-  // Función genérica para finalizar la selección (usa tu lógica original)
   const handleSelectionEnd = (coords: { x: number; y: number } | null) => {
     if (!isDragging || !dragStart || !coords) {
-        setIsDragging(false); // Asegúrate de detener el arrastre incluso si algo falla
+        setIsDragging(false);
         return;
     };
 
@@ -159,12 +178,10 @@ const PixelGrid: React.FC<PixelGridProps> = ({ pixelData, selectable, rows, colu
     setDragEnd(null);
   };
 
-  // --- Manejadores de eventos específicos ---
-
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => handleSelectionStart(getCoordsFromEvent(e.clientX, e.clientY));
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => handleSelectionMove(getCoordsFromEvent(e.clientX, e.clientY));
   const handleMouseUp = (e: React.MouseEvent<HTMLCanvasElement>) => handleSelectionEnd(getCoordsFromEvent(e.clientX, e.clientY));
-  const handleMouseLeave = () => handleSelectionEnd(dragEnd); // Usa el último punto conocido si el mouse se va
+  const handleMouseLeave = () => handleSelectionEnd(dragEnd);
 
   const handleTouchStart = (e: React.TouchEvent<HTMLCanvasElement>) => {
     e.preventDefault();
@@ -182,7 +199,7 @@ const PixelGrid: React.FC<PixelGridProps> = ({ pixelData, selectable, rows, colu
     if (touch) {
       handleSelectionEnd(getCoordsFromEvent(touch.clientX, touch.clientY));
     } else {
-      handleSelectionEnd(dragEnd); // Fallback si no se puede obtener el último toque
+      handleSelectionEnd(dragEnd);
     }
   };
 
@@ -199,6 +216,7 @@ const PixelGrid: React.FC<PixelGridProps> = ({ pixelData, selectable, rows, colu
         onTouchEnd={handleTouchEnd}
         onTouchCancel={handleTouchEnd}
         style={{
+          // --- MODIFICACIÓN: El tamaño CSS debe coincidir con el tamaño del bitmap ---
           width: `${columns * BASE_CELL_SIZE}px`,
           height: `${rows * BASE_CELL_SIZE}px`,
           imageRendering: "pixelated",
