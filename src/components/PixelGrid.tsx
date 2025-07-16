@@ -11,6 +11,7 @@ interface PixelGridProps {
 }
 
 const BASE_CELL_SIZE = 10; // Cada celda mide 10px x 10px
+const LONG_PRESS_DURATION = 300; // 300ms para activar el modo selección
 
 const PixelGrid: React.FC<PixelGridProps> = ({ pixelData, selectable, rows, columns }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -20,27 +21,63 @@ const PixelGrid: React.FC<PixelGridProps> = ({ pixelData, selectable, rows, colu
   const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(null);
   const [dragEnd, setDragEnd] = useState<{ x: number; y: number } | null>(null);
 
-  // Se redibuja el canvas cuando cambian las props o el estado del arrastre
+  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const initialTouchPositionRef = useRef<{ x: number, y: number } | null>(null);
+
+  // --- MODIFICACIÓN CLAVE: Bloqueo de scroll más robusto ---
+  useEffect(() => {
+    // Si no estamos arrastrando, no hacemos nada.
+    if (!isDragging) {
+      return;
+    }
+
+    const htmlElement = document.documentElement;
+    const bodyElement = document.body;
+    // Buscamos el contenedor de scroll más cercano que tenga la clase 'overflow-auto'.
+    // Esto hace que el componente sea más adaptable si su estructura padre cambia.
+    const scrollContainer = canvasRef.current?.closest('.overflow-auto') as HTMLElement | null;
+
+    // Guardar estilos originales ANTES de modificarlos
+    const originalStyles = {
+      html: htmlElement.style.overflow,
+      body: bodyElement.style.overflow,
+      container: scrollContainer ? scrollContainer.style.overflow : null
+    };
+
+    // Aplicar estilos de bloqueo para congelar la vista
+    htmlElement.style.overflow = 'hidden';
+    bodyElement.style.overflow = 'hidden';
+    if (scrollContainer) {
+      scrollContainer.style.overflow = 'hidden';
+    }
+    
+    // Función de limpieza: se ejecuta cuando isDragging cambia a false o el componente se desmonta.
+    // Esto asegura que los estilos siempre se restauren.
+    return () => {
+      htmlElement.style.overflow = originalStyles.html;
+      bodyElement.style.overflow = originalStyles.body;
+      if (scrollContainer && originalStyles.container !== null) {
+        scrollContainer.style.overflow = originalStyles.container;
+      }
+    };
+  }, [isDragging]);
+
+
+  // El useEffect para dibujar el canvas permanece igual.
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    // --- CORRECCIÓN DE DIBUJADO ---
-    // 1. Establece el tamaño del bitmap del canvas. Este será el tamaño real de la superficie de dibujo.
-    //    Lo mantenemos por debajo del límite de iOS.
     const canvasWidth = columns * BASE_CELL_SIZE;
     const canvasHeight = rows * BASE_CELL_SIZE;
     canvas.width = canvasWidth;
     canvas.height = canvasHeight;
 
-    // 2. NO escalamos el contexto. El tamaño del bitmap y el tamaño de visualización (CSS)
-    //    serán los mismos, por lo que no se necesita escalado manual.
     ctx.resetTransform();
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Dibuja la cuadrícula y los píxeles (disponibles y comprados)
     for (let y = 0; y < rows; y++) {
       for (let x = 0; x < columns; x++) {
         const index = y * columns + x;
@@ -50,15 +87,12 @@ const PixelGrid: React.FC<PixelGridProps> = ({ pixelData, selectable, rows, colu
           ctx.fillStyle = '#E5E7EB';
           ctx.fillRect(x * BASE_CELL_SIZE, y * BASE_CELL_SIZE, BASE_CELL_SIZE, BASE_CELL_SIZE);
         } else if (pixel.status === 'sold') {
-          if (selectable) {
-            ctx.fillStyle = '#A78BFA'; // Púrpura para "Purchased"
-            ctx.fillRect(x * BASE_CELL_SIZE, y * BASE_CELL_SIZE, BASE_CELL_SIZE, BASE_CELL_SIZE);
-          }
+          ctx.fillStyle = '#A78BFA';
+          ctx.fillRect(x * BASE_CELL_SIZE, y * BASE_CELL_SIZE, BASE_CELL_SIZE, BASE_CELL_SIZE);
         }
       }
     }
 
-    // Dibuja las líneas de la cuadrícula
     ctx.strokeStyle = '#898989';
     ctx.lineWidth = 0.5;
     for (let x = 0; x <= columns; x++) {
@@ -74,7 +108,6 @@ const PixelGrid: React.FC<PixelGridProps> = ({ pixelData, selectable, rows, colu
       ctx.stroke();
     }
 
-    // Dibuja la selección de píxeles
     const selectionColor = "rgba(96, 165, 250, 0.6)";
     ctx.fillStyle = selectionColor;
 
@@ -84,7 +117,6 @@ const PixelGrid: React.FC<PixelGridProps> = ({ pixelData, selectable, rows, colu
       });
     }
 
-    // Dibuja el área de arrastre en tiempo real
     if (isDragging && dragStart && dragEnd) {
       const minX = Math.min(dragStart.x, dragEnd.x);
       const maxX = Math.max(dragStart.x, dragEnd.x);
@@ -96,29 +128,20 @@ const PixelGrid: React.FC<PixelGridProps> = ({ pixelData, selectable, rows, colu
         }
       }
     }
-  }, [pixelData, isDragging, dragStart, dragEnd, selectedPixels, selectable, columns, rows]);
+  }, [pixelData, isDragging, dragStart, dragEnd, selectedPixels, columns, rows]);
 
-  // --- LÓGICA DE MANEJADORES DE EVENTOS ---
 
-  // --- CORRECCIÓN DE COORDENADAS ---
-  // Función simplificada y precisa para obtener las coordenadas del grid
   const getCoordsFromEvent = (clientX: number, clientY: number): { x: number; y: number } => {
     const canvas = canvasRef.current;
     if (!canvas) return { x: 0, y: 0 };
     const rect = canvas.getBoundingClientRect();
-
-    // Calcula la posición del toque RELATIVA al borde del canvas
     const x = clientX - rect.left;
     const y = clientY - rect.top;
-
-    // Convierte la posición en píxeles a coordenadas del grid
     const gridX = Math.floor(x / BASE_CELL_SIZE);
     const gridY = Math.floor(y / BASE_CELL_SIZE);
-
     return { x: gridX, y: gridY };
   };
 
-  // El resto de los manejadores de eventos usan la función corregida y no necesitan cambios
   const handleSelectionStart = (coords: { x: number; y: number }) => {
     if (!selectable || selectedPixels.length > 0) return;
     const candidatePixel = pixelData[coords.y * columns + coords.x];
@@ -174,33 +197,66 @@ const PixelGrid: React.FC<PixelGridProps> = ({ pixelData, selectable, rows, colu
     setDragEnd(null);
   };
 
+  // --- Handlers para Mouse (sin cambios) ---
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => handleSelectionStart(getCoordsFromEvent(e.clientX, e.clientY));
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => handleSelectionMove(getCoordsFromEvent(e.clientX, e.clientY));
   const handleMouseUp = (e: React.MouseEvent<HTMLCanvasElement>) => handleSelectionEnd(getCoordsFromEvent(e.clientX, e.clientY));
   const handleMouseLeave = () => handleSelectionEnd(dragEnd);
 
+  // --- LÓGICA TÁCTIL MEJORADA CON "MANTENER PRESIONADO" ---
   const handleTouchStart = (e: React.TouchEvent<HTMLCanvasElement>) => {
-    e.preventDefault();
-    handleSelectionStart(getCoordsFromEvent(e.touches[0].clientX, e.touches[0].clientY));
+    if (!selectable) return;
+
+    const touch = e.touches[0];
+    initialTouchPositionRef.current = { x: touch.clientX, y: touch.clientY };
+
+    longPressTimerRef.current = setTimeout(() => {
+      if (navigator.vibrate) navigator.vibrate(50);
+      handleSelectionStart(getCoordsFromEvent(touch.clientX, touch.clientY));
+      longPressTimerRef.current = null;
+    }, LONG_PRESS_DURATION);
   };
 
   const handleTouchMove = (e: React.TouchEvent<HTMLCanvasElement>) => {
-    e.preventDefault();
-    handleSelectionMove(getCoordsFromEvent(e.touches[0].clientX, e.touches[0].clientY));
+    if (!selectable) return;
+
+    if (isDragging) {
+      e.preventDefault();
+      handleSelectionMove(getCoordsFromEvent(e.touches[0].clientX, e.touches[0].clientY));
+      return;
+    }
+
+    if (longPressTimerRef.current && initialTouchPositionRef.current) {
+        const touch = e.touches[0];
+        const deltaX = Math.abs(touch.clientX - initialTouchPositionRef.current.x);
+        const deltaY = Math.abs(touch.clientY - initialTouchPositionRef.current.y);
+        if (deltaX > 10 || deltaY > 10) {
+            clearTimeout(longPressTimerRef.current);
+            longPressTimerRef.current = null;
+        }
+    }
   };
   
   const handleTouchEnd = (e: React.TouchEvent<HTMLCanvasElement>) => {
-    e.preventDefault();
-    const touch = e.changedTouches[0];
-    if (touch) {
-      handleSelectionEnd(getCoordsFromEvent(touch.clientX, touch.clientY));
-    } else {
-      handleSelectionEnd(dragEnd);
+    if (!selectable) return;
+
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+
+    if (isDragging) {
+      const touch = e.changedTouches[0];
+      if (touch) {
+        handleSelectionEnd(getCoordsFromEvent(touch.clientX, touch.clientY));
+      } else {
+        handleSelectionEnd(dragEnd);
+      }
     }
   };
 
   return (
-    <div className="w-full h-full bg-white touch-none">
+    <div className="w-full h-full bg-white">
       <canvas
         ref={canvasRef}
         onMouseDown={handleMouseDown}
@@ -214,8 +270,8 @@ const PixelGrid: React.FC<PixelGridProps> = ({ pixelData, selectable, rows, colu
         style={{
           width: `${columns * BASE_CELL_SIZE}px`,
           height: `${rows * BASE_CELL_SIZE}px`,
-          imageRendering: "pixelated", // Clave para que los píxeles no se vean borrosos
-          cursor: selectable ? "pointer" : "default"
+          imageRendering: "pixelated",
+          cursor: selectable ? "crosshair" : "grab"
         }}
       />
     </div>

@@ -1,10 +1,10 @@
 // src/pages/Selection.tsx
-import { useState, useEffect } from 'react';  //React
+import { useState, useEffect } from 'react'; //React
 import { useNavigate } from 'react-router-dom';
 import PixelGrid from '../components/PixelGrid';
 import { fetchPixelData } from '../services/pixelService';
 import { usePixelContext } from '../context/PixelContext';
-import { ShoppingCart, Check } from 'lucide-react';
+import { ShoppingCart, Check, Hand } from 'lucide-react'; // Importar 'Hand'
 import { PixelData } from '../services/db';
 
 const Selection = () => {
@@ -100,18 +100,23 @@ const Selection = () => {
                 {/* MODIFICACIÓN: Permitir que los elementos de la leyenda se envuelvan y se centren */}
                 <div className="flex items-center justify-center flex-wrap gap-x-4 gap-y-2">
                   <div className="flex items-center">
-                    <div className="w-4 h-4 bg-gray-200 mr-2"></div>
+                    <div className="w-4 h-4 bg-gray-200 mr-2 border border-gray-300"></div>
                     <span className="text-sm text-gray-600">Available</span>
                   </div>
                   <div className="flex items-center">
-                    <div className="w-4 h-4 bg-purple-400 mr-2"></div>
+                    <div className="w-4 h-4 bg-purple-400 mr-2 border border-gray-300"></div>
                     <span className="text-sm text-gray-600">Purchased</span>
                   </div>
                   <div className="flex items-center">
-                    <div className="w-4 h-4 bg-blue-400 mr-2"></div>
+                    <div className="w-4 h-4 bg-blue-400 mr-2 border border-gray-300"></div>
                     <span className="text-sm text-gray-600">Selected</span>
                   </div>
                 </div>
+              </div>
+              {/* --- MENSAJE DE AYUDA AÑADIDO --- */}
+              <div className="mt-3 text-center text-sm text-blue-800 bg-blue-100 p-2 rounded-lg flex items-center justify-center gap-2">
+                <Hand className="h-4 w-4 flex-shrink-0" />
+                <span><strong>Tip:</strong> Hold down on the grid to start selecting pixels.</span>
               </div>
             </div>
             <div className="p-1 md:p-2">
