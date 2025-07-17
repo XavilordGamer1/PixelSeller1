@@ -23,6 +23,16 @@ export interface PixelData {
   blockSize?: BlockSize;
 }
 
+// --- NUEVA INTERFAZ PARA CUPONES ---
+export interface Coupon {
+  id: number;
+  code: string;
+  discount_percentage: number;
+  is_active: boolean;
+  uses_remaining: number;
+}
+
+
 const ROWS = 134;
 const COLUMNS = 320;
 const TOTAL_PIXELS = ROWS * COLUMNS;
@@ -160,7 +170,6 @@ export const savePixelPurchase = async (
 };
 
 /**
- * --- NUEVA FUNCIÓN ---
  * Registra una nueva compra en la tabla 'purchases'.
  */
 export const logPurchase = async (
@@ -194,5 +203,46 @@ export const logPurchase = async (
   }
 
   console.log(`Compra registrada con PayPal Order ID: ${paypalOrderId}`);
+  return true;
+};
+
+
+/**
+ * --- NUEVA FUNCIÓN ---
+ * Verifica si un cupón es válido y devuelve sus datos.
+ */
+export const verifyCoupon = async (code: string): Promise<Coupon | null> => {
+  const { data, error } = await supabase
+    .from('coupons')
+    .select('*')
+    .eq('code', code)
+    .eq('is_active', true)
+    .gt('uses_remaining', 0)
+    .single();
+
+  if (error || !data) {
+    if (error && error.code !== 'PGRST116') { // PGRST116 = No se encontraron filas
+      console.error('Error al verificar el cupón:', error);
+    }
+    return null;
+  }
+
+  return data as Coupon;
+};
+
+/**
+ * --- NUEVA FUNCIÓN ---
+ * Decrementa el uso de un cupón después de una compra exitosa.
+ * Utiliza una función RPC de Supabase para seguridad.
+ */
+export const redeemCoupon = async (couponId: number): Promise<boolean> => {
+  const { error } = await supabase.rpc('decrement_coupon_uses', {
+    coupon_id: couponId,
+  });
+
+  if (error) {
+    console.error('Error al redimir el cupón:', error);
+    return false;
+  }
   return true;
 };

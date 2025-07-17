@@ -1,4 +1,5 @@
 import React, { createContext, useState, useContext, ReactNode } from 'react';
+import { Coupon } from '../services/db'; // Importar la interfaz Coupon
 
 interface PixelContextType {
   selectedPixels: any[];
@@ -7,6 +8,8 @@ interface PixelContextType {
   setProcessingPayment: React.Dispatch<React.SetStateAction<boolean>>;
   paymentCompleted: boolean;
   setPaymentCompleted: React.Dispatch<React.SetStateAction<boolean>>;
+  appliedCoupon: Coupon | null; // <-- NUEVO
+  setAppliedCoupon: React.Dispatch<React.SetStateAction<Coupon | null>>; // <-- NUEVO
   resetState: () => void;
 }
 
@@ -28,11 +31,13 @@ export const PixelProvider: React.FC<PixelProviderProps> = ({ children }) => {
   const [selectedPixels, setSelectedPixels] = useState<any[]>([]);
   const [processingPayment, setProcessingPayment] = useState(false);
   const [paymentCompleted, setPaymentCompleted] = useState(false);
+  const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null); // <-- NUEVO
 
   const resetState = () => {
     setSelectedPixels([]);
     setProcessingPayment(false);
     setPaymentCompleted(false);
+    setAppliedCoupon(null); // <-- AÑADIDO AL RESET
   };
 
   return (
@@ -44,6 +49,8 @@ export const PixelProvider: React.FC<PixelProviderProps> = ({ children }) => {
         setProcessingPayment,
         paymentCompleted,
         setPaymentCompleted,
+        appliedCoupon, // <-- NUEVO
+        setAppliedCoupon, // <-- NUEVO
         resetState
       }}
     >

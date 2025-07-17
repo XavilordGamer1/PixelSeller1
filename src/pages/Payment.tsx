@@ -3,13 +3,14 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { usePixelContext } from '../context/PixelContext';
 import { ArrowLeft } from 'lucide-react';
-// MODIFICACIÓN: Importar logPurchase junto con updatePixelContent
 import { updatePixelContent, logPurchase } from '../services/pixelService';
+import { redeemCoupon } from '../services/db'; // <-- Importar redeemCoupon
 import { PayPalButtons, usePayPalScriptReducer } from '@paypal/react-paypal-js';
 import type { OnApproveData, CreateOrderData } from "@paypal/paypal-js";
 
 const Payment = () => {
-  const { selectedPixels, setPaymentCompleted } = usePixelContext();
+  // --- OBTENER appliedCoupon DEL CONTEXTO ---
+  const { selectedPixels, setPaymentCompleted, appliedCoupon } = usePixelContext();
   const [{ isPending }] = usePayPalScriptReducer();
   const navigate = useNavigate();
 
@@ -19,16 +20,20 @@ const Payment = () => {
     }
   }, [selectedPixels, navigate]);
 
-  const totalAmount = selectedPixels.length.toString();
+  // --- LÓGICA DE CÁLCULO DE PRECIOS ACTUALIZADA ---
+  const basePrice = selectedPixels.length;
+  const discountPercentage = appliedCoupon?.discount_percentage ?? 0;
+  const discountAmount = (basePrice * discountPercentage) / 100;
+  const finalAmount = (basePrice - discountAmount).toFixed(2); // PayPal necesita un string con 2 decimales
 
   const createOrder = (_data: CreateOrderData, actions: any) => {
     return actions.order.create({
       purchase_units: [
         {
-          description: `Compra de ${selectedPixels.length} pixeles en PixelCanvas`,
+          description: `Compra de ${selectedPixels.length} pixeles en Thoughts Wall con un descuento de ${discountPercentage}%`,
           amount: {
             currency_code: "USD",
-            value: totalAmount,
+            value: finalAmount, // <-- USAR EL PRECIO FINAL
           },
         },
       ],
@@ -41,21 +46,20 @@ const Payment = () => {
     }
 
     try {
-      // 1. Se intenta capturar el pago.
       const order = await actions.order.capture();
       console.log("Respuesta de captura de orden:", order);
 
-      // 2. Verificamos que el estado de la orden sea 'COMPLETED'.
       if (order.status === 'COMPLETED') {
         console.log("¡El pago fue completado exitosamente!");
+
+        // --- NUEVO: REDIMIR CUPÓN SI SE USÓ ---
+        if (appliedCoupon) {
+          await redeemCoupon(appliedCoupon.id);
+        }
         
-        // --- MODIFICACIÓN ---
-        // 3. Registrar la compra en la base de datos antes de continuar.
         const pixelIds = selectedPixels.map((p: any) => p.id);
-        // Usamos el ID de la orden de PayPal como identificador único.
         await logPurchase(order.id, pixelIds);
         
-        // 4. Solo si está completado, actualizamos la base de datos y navegamos.
         const updatedPixels = selectedPixels.map((pixel: any) => ({
           ...pixel,
           status: 'sold',
@@ -63,12 +67,10 @@ const Payment = () => {
         }));
         await updatePixelContent(updatedPixels);
         
-        // 5. Marcamos el pago como completado y navegamos a la siguiente página.
         setPaymentCompleted(true);
         navigate('/pixel-content');
 
       } else {
-        // Si el estado no es 'COMPLETED', mostramos un error.
         console.error("El pago no fue completado. Estado:", order.status);
         alert("Tu pago no pudo ser procesado. Por favor, inténtalo de nuevo.");
       }
@@ -104,14 +106,20 @@ const Payment = () => {
           <div className="p-6">
             <div className="mb-8">
               <h2 className="text-xl font-semibold text-gray-800 mb-4">Order Summary</h2>
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <div className="flex justify-between mb-2">
-                  <span className="text-gray-600">Selected Pixels:</span>
-                  <span className="font-medium">{selectedPixels.length}</span>
+              <div className="bg-gray-50 p-4 rounded-lg space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Selected Pixels ({selectedPixels.length}):</span>
+                  <span className="font-medium">${basePrice.toFixed(2)}</span>
                 </div>
+                {appliedCoupon && (
+                  <div className="flex justify-between text-green-600">
+                    <span className="text-gray-600">Discount ({discountPercentage}%):</span>
+                    <span className="font-medium">- ${discountAmount.toFixed(2)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between pt-2 border-t border-gray-200 mt-2">
                   <span className="text-gray-800 font-bold">Total:</span>
-                  <span className="text-blue-600 font-bold">${totalAmount}.00</span>
+                  <span className="text-blue-600 font-bold">${finalAmount}</span>
                 </div>
               </div>
             </div>
@@ -127,6 +135,7 @@ const Payment = () => {
                 createOrder={createOrder}
                 onApprove={onApprove}
                 onError={onError}
+                key={finalAmount} // <-- Clave para forzar la recreación del botón si el total cambia
               />
             )}
           </div>
