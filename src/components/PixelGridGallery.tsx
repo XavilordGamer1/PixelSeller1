@@ -9,11 +9,13 @@ interface PixelGridGalleryProps {
 }
 
 const BASE_CELL_SIZE = 10;
+const ZOOM_VIEWER_SIZE = 250; // Ancho y alto del recuadro de zoom en píxeles
+const ZOOM_VIEWER_OFFSET = 15; // Distancia del cursor
 
 const PixelGridGallery: React.FC<PixelGridGalleryProps> = ({ pixelData, rows, columns }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const hasTouched = useRef(false); // Ref para evitar conflictos entre mouse y touch
+  const hasTouched = useRef(false);
 
   const [zoom, setZoom] = useState<number>(1);
   const [initialZoom, setInitialZoom] = useState<number>(1);
@@ -132,7 +134,6 @@ const PixelGridGallery: React.FC<PixelGridGalleryProps> = ({ pixelData, rows, co
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    // Si hubo una interacción táctil reciente, ignoramos el evento del mouse.
     if (hasTouched.current) return;
 
     const pixel = findPixelByCoords(e.clientX, e.clientY);
@@ -146,9 +147,20 @@ const PixelGridGallery: React.FC<PixelGridGalleryProps> = ({ pixelData, rows, co
       const originY = (pixel.blockOrigin?.y || pixel.y) * cellSize;
       const percentX = ((xOnCanvas - originX) / blockWidth) * 100;
       const percentY = ((yOnCanvas - originY) / blockHeight) * 100;
+
+      // --- LÓGICA DE POSICIONAMIENTO CORREGIDA ---
+      let newX = e.clientX + ZOOM_VIEWER_OFFSET;
+      let newY = e.clientY + ZOOM_VIEWER_OFFSET;
+
+      if (newX + ZOOM_VIEWER_SIZE > window.innerWidth) {
+        newX = e.clientX - ZOOM_VIEWER_SIZE - ZOOM_VIEWER_OFFSET;
+      }
+      if (newY + ZOOM_VIEWER_SIZE > window.innerHeight) {
+        newY = e.clientY - ZOOM_VIEWER_SIZE - ZOOM_VIEWER_OFFSET;
+      }
       
       setZoomViewer({
-        visible: true, x: e.clientX + 15, y: e.clientY + 15, imageUrl: pixel.imageUrl,
+        visible: true, x: newX, y: newY, imageUrl: pixel.imageUrl,
         style: {
           backgroundPosition: `${percentX}% ${percentY}%`,
           backgroundSize: `${(pixel.blockSize?.width || 1) * 100}% ${(pixel.blockSize?.height || 1) * 100}%`,
@@ -164,7 +176,7 @@ const PixelGridGallery: React.FC<PixelGridGalleryProps> = ({ pixelData, rows, co
   };
   
   const handleTouchStart = (e: React.TouchEvent<HTMLCanvasElement>) => {
-    hasTouched.current = true; // Marcamos que hubo una interacción táctil
+    hasTouched.current = true;
     
     if (zoomViewer.visible) {
       setZoomViewer(prev => ({ ...prev, visible: false }));
