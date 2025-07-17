@@ -1,3 +1,21 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* --- ESTILOS PARA LA VENTANA DE ZOOM/VISTA PREVIA --- */
+.zoom-viewer {
+  position: fixed;
+  width: 250px;
+  height: 250px;
+  border: 2px solid #3b82f6;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  pointer-events: none;
+  background-repeat: no-repeat;
+  background-position: center;
+  image-rendering: pixelated;
+  z-index: 9999;
+  transition: opacity 0.1s ease-in-out;
+  overflow: hidden;
+}

@@ -12,179 +12,211 @@ const BASE_CELL_SIZE = 10;
 
 const PixelGridGallery: React.FC<PixelGridGalleryProps> = ({ pixelData, rows, columns }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const hasTouched = useRef(false); // Ref para evitar conflictos entre mouse y touch
 
-  // Calcula el zoom inicial.
-  const computeInitialZoom = () => {
-    const availableWidth = window.innerWidth;
-    const availableHeight = window.innerHeight - 64;
-    const zoomX = availableWidth / (columns * BASE_CELL_SIZE);
-    const zoomY = availableHeight / (rows * BASE_CELL_SIZE);
-    return Math.min(zoomX, zoomY);
-  };
-
-  const [initialZoom] = useState<number>(() => computeInitialZoom());
-  const [zoom, setZoom] = useState<number>(() => computeInitialZoom());
+  const [zoom, setZoom] = useState<number>(1);
+  const [initialZoom, setInitialZoom] = useState<number>(1);
   const cellSize = BASE_CELL_SIZE * zoom;
 
-  // Mapa de caché para imágenes.
+  const [zoomViewer, setZoomViewer] = useState({
+    visible: false,
+    x: 0,
+    y: 0,
+    imageUrl: '',
+    style: {},
+  });
+
   const imageCacheRef = useRef<Map<string, HTMLImageElement>>(new Map());
 
-  // Para almacenar las regiones (en coordenadas de celda) de bloques ya renderizados.
-  type BlockRegion = { origin: { x: number; y: number }; size: { width: number; height: number } };
-  let renderedBlocks: BlockRegion[] = [];
-
-  // Función que nos dice si una celda (columna x, fila y) ya fue cubierta por un bloque renderizado.
-  const isCellCovered = (cx: number, cy: number) => {
-    for (const block of renderedBlocks) {
-      if (
-        cx >= block.origin.x &&
-        cx < block.origin.x + block.size.width &&
-        cy >= block.origin.y &&
-        cy < block.origin.y + block.size.height
-      ) {
-        return true;
-      }
-    }
-    return false;
-  };
-
-  const drawGrid = (ctx: CanvasRenderingContext2D) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    // Configurar canvas para alta densidad.
-    const dpr = window.devicePixelRatio || 1;
-    canvas.width = columns * cellSize * dpr;
-    canvas.height = rows * cellSize * dpr;
-    ctx.resetTransform();
-    ctx.scale(dpr, dpr);
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.imageSmoothingEnabled = false;
-
-    // Pinta el fondo de todas las celdas disponibles.
-    ctx.fillStyle = '#E5E7EB';
-    ctx.fillRect(0, 0, columns * cellSize, rows * cellSize);
-
-    // Reiniciamos las regiones ya renderizadas.
-    renderedBlocks = [];
-
-    // Recorremos la grilla en orden (fila por fila) para dibujar imágenes.
-    for (let y = 0; y < rows; y++) {
-      for (let x = 0; x < columns; x++) {
-        // Si la celda actual ya está cubierta por una región de un bloque, la omitimos.
-        if (isCellCovered(x, y)) continue;
-
-        const index = y * columns + x;
-        const pixel = pixelData[index];
-        if (!pixel) continue;
-
-        if (pixel.status === 'sold') {
-          if (pixel.imageUrl) {
-            // Caso de bloque: cuando el píxel forma parte de un bloque.
-            if (pixel.blockOrigin && pixel.blockSize) {
-              // Si es la celda origen del bloque...
-              if (pixel.x === pixel.blockOrigin.x && pixel.y === pixel.blockOrigin.y) {
-                let img = imageCacheRef.current.get(pixel.imageUrl);
-                if (!img) {
-                  img = new Image();
-                  img.src = pixel.imageUrl;
-                  img.onload = () => {
-                    imageCacheRef.current.set(pixel.imageUrl!, img!);
-                    window.requestAnimationFrame(() => drawGrid(ctx));
-                  };
-                } else {
-                  // Calcular la región del bloque en coordenadas de celda.
-                  const originX = pixel.blockOrigin.x; // en número de celdas
-                  const originY = pixel.blockOrigin.y;
-                  const blockWidth = pixel.blockSize.width;
-                  const blockHeight = pixel.blockSize.height;
-                  // Dibujar la imagen en toda la región del bloque.
-                  ctx.drawImage(
-                    img,
-                    originX * cellSize,
-                    originY * cellSize,
-                    blockWidth * cellSize,
-                    blockHeight * cellSize
-                  );
-                  // Registrar la región para evitar re-dibujar en celdas del bloque.
-                  renderedBlocks.push({
-                    origin: { x: originX, y: originY },
-                    size: { width: blockWidth, height: blockHeight }
-                  });
-                }
-              }
-              // Si el píxel tiene blockOrigin y blockSize pero no es la celda origen, se omite.
-              else {
-                continue;
-              }
-            }
-            // Caso individual: píxel vendido con imagen y sin información de bloque.
-            else {
-              let img = imageCacheRef.current.get(pixel.imageUrl);
-              if (!img) {
-                img = new Image();
-                img.src = pixel.imageUrl;
-                img.onload = () => {
-                  imageCacheRef.current.set(pixel.imageUrl!, img!);
-                  window.requestAnimationFrame(() => drawGrid(ctx));
-                };
-              } else {
-                ctx.drawImage(img, x * cellSize, y * cellSize, cellSize, cellSize);
-              }
-            }
-          }
-          // Si no hay imagen asignada se podría dibujar un fallback (en este ejemplo no se sobrescribe).
-        }
-        // No se hace nada para celdas "available" ya que el fondo ya se pintó.
-      }
-    }
-  };
+  useEffect(() => {
+    const computeAndSetZoom = () => {
+      if (!containerRef.current) return;
+      const availableWidth = containerRef.current.clientWidth;
+      const availableHeight = containerRef.current.clientHeight;
+      const zoomX = availableWidth / (columns * BASE_CELL_SIZE);
+      const zoomY = availableHeight / (rows * BASE_CELL_SIZE);
+      const newInitialZoom = Math.min(zoomX, zoomY, 1);
+      setInitialZoom(newInitialZoom);
+      setZoom(newInitialZoom);
+    };
+    computeAndSetZoom();
+    window.addEventListener('resize', computeAndSetZoom);
+    return () => window.removeEventListener('resize', computeAndSetZoom);
+  }, [rows, columns]);
 
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    if (!zoomViewer.visible) return;
+    const htmlElement = document.documentElement;
+    const bodyElement = document.body;
+    const originalStyles = {
+      html: htmlElement.style.overflow,
+      body: bodyElement.style.overflow,
+    };
+    htmlElement.style.overflow = 'hidden';
+    bodyElement.style.overflow = 'hidden';
+    return () => {
+      htmlElement.style.overflow = originalStyles.html;
+      bodyElement.style.overflow = originalStyles.body;
+    };
+  }, [zoomViewer.visible]);
+
+  useEffect(() => {
+    type BlockRegion = { origin: { x: number; y: number }; size: { width: number; height: number } };
+    let renderedBlocks: BlockRegion[] = [];
+    const isCellCovered = (cx: number, cy: number) => {
+      for (const block of renderedBlocks) {
+        if (cx >= block.origin.x && cx < block.origin.x + block.size.width && cy >= block.origin.y && cy < block.origin.y + block.size.height) return true;
+      }
+      return false;
+    };
+    const drawGrid = (ctx: CanvasRenderingContext2D) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = columns * cellSize * dpr;
+      canvas.height = rows * cellSize * dpr;
+      ctx.resetTransform();
+      ctx.scale(dpr, dpr);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.imageSmoothingEnabled = false;
+      ctx.fillStyle = '#E5E7EB';
+      ctx.fillRect(0, 0, columns * cellSize, rows * cellSize);
+      renderedBlocks = [];
+      for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < columns; x++) {
+          if (isCellCovered(x, y)) continue;
+          const index = y * columns + x;
+          const pixel = pixelData[index];
+          if (!pixel || pixel.status !== 'sold' || !pixel.imageUrl) continue;
+          if (pixel.blockOrigin && pixel.blockSize && pixel.x === pixel.blockOrigin.x && pixel.y === pixel.blockOrigin.y) {
+            let img = imageCacheRef.current.get(pixel.imageUrl);
+            if (!img) {
+              img = new Image(); img.src = pixel.imageUrl;
+              img.onload = () => { imageCacheRef.current.set(pixel.imageUrl!, img!); window.requestAnimationFrame(() => drawGrid(ctx)); };
+            } else {
+              const { x: oX, y: oY } = pixel.blockOrigin; const { width: bW, height: bH } = pixel.blockSize;
+              ctx.drawImage(img, oX * cellSize, oY * cellSize, bW * cellSize, bH * cellSize);
+              renderedBlocks.push({ origin: { x: oX, y: oY }, size: { width: bW, height: bH } });
+            }
+          } else if (!pixel.blockOrigin) {
+            let img = imageCacheRef.current.get(pixel.imageUrl);
+            if (!img) {
+              img = new Image(); img.src = pixel.imageUrl;
+              img.onload = () => { imageCacheRef.current.set(pixel.imageUrl!, img!); window.requestAnimationFrame(() => drawGrid(ctx)); };
+            } else { ctx.drawImage(img, x * cellSize, y * cellSize, cellSize, cellSize); }
+          }
+        }
+      }
+    };
+    const canvas = canvasRef.current; if (!canvas) return;
+    const ctx = canvas.getContext('2d'); if (!ctx) return;
     drawGrid(ctx);
-    // Se vuelve a dibujar cuando pixelData, zoom o cellSize cambian.
-  }, [pixelData, zoom, cellSize]);
+  }, [pixelData, zoom, cellSize, columns, rows]);
+
+  const findPixelByCoords = (clientX: number, clientY: number): PixelData | null => {
+    const canvas = canvasRef.current;
+    if (!canvas) return null;
+    const rect = canvas.getBoundingClientRect();
+    const x = clientX - rect.left; const y = clientY - rect.top;
+    const gridX = Math.floor(x / cellSize); const gridY = Math.floor(y / cellSize);
+    if (gridX < 0 || gridX >= columns || gridY < 0 || gridY >= rows) return null;
+    for (const p of pixelData) {
+      if (p.blockOrigin && p.blockSize) {
+        if (gridX >= p.blockOrigin.x && gridX < p.blockOrigin.x + p.blockSize.width && gridY >= p.blockOrigin.y && gridY < p.blockOrigin.y + p.blockSize.height) {
+          return pixelData[p.blockOrigin.y * columns + p.blockOrigin.x];
+        }
+      } else if (p.x === gridX && p.y === gridY) { return p; }
+    }
+    return pixelData[gridY * columns + gridX] || null;
+  };
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    // Si hubo una interacción táctil reciente, ignoramos el evento del mouse.
+    if (hasTouched.current) return;
+
+    const pixel = findPixelByCoords(e.clientX, e.clientY);
+    if (pixel && pixel.status === 'sold' && pixel.imageUrl) {
+      const rect = canvasRef.current!.getBoundingClientRect();
+      const xOnCanvas = e.clientX - rect.left;
+      const yOnCanvas = e.clientY - rect.top;
+      const blockWidth = (pixel.blockSize?.width || 1) * cellSize;
+      const blockHeight = (pixel.blockSize?.height || 1) * cellSize;
+      const originX = (pixel.blockOrigin?.x || pixel.x) * cellSize;
+      const originY = (pixel.blockOrigin?.y || pixel.y) * cellSize;
+      const percentX = ((xOnCanvas - originX) / blockWidth) * 100;
+      const percentY = ((yOnCanvas - originY) / blockHeight) * 100;
+      
+      setZoomViewer({
+        visible: true, x: e.clientX + 15, y: e.clientY + 15, imageUrl: pixel.imageUrl,
+        style: {
+          backgroundPosition: `${percentX}% ${percentY}%`,
+          backgroundSize: `${(pixel.blockSize?.width || 1) * 100}% ${(pixel.blockSize?.height || 1) * 100}%`,
+        },
+      });
+    } else {
+      handleMouseLeave();
+    }
+  };
+
+  const handleMouseLeave = () => {
+    setZoomViewer(prev => ({ ...prev, visible: false }));
+  };
+  
+  const handleTouchStart = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    hasTouched.current = true; // Marcamos que hubo una interacción táctil
+    
+    if (zoomViewer.visible) {
+      setZoomViewer(prev => ({ ...prev, visible: false }));
+      return;
+    }
+
+    const touch = e.touches[0];
+    const pixel = findPixelByCoords(touch.clientX, touch.clientY);
+
+    if (pixel && pixel.status === 'sold' && pixel.imageUrl) {
+      setZoomViewer({
+        visible: true,
+        x: window.innerWidth / 2, y: window.innerHeight / 2,
+        imageUrl: pixel.imageUrl,
+        style: {
+          backgroundSize: 'contain', backgroundPosition: 'center',
+          transform: 'translate(-50%, -50%)',
+          width: '90vw', height: '90vw',
+          maxWidth: '400px', maxHeight: '400px',
+        },
+      });
+    }
+  };
 
   return (
-    <div className="relative w-full h-full bg-white">
+    <div className="relative w-full h-full bg-white" ref={containerRef}>
       <div className="w-full h-full overflow-auto">
         <canvas
           key={zoom}
           ref={canvasRef}
+          onMouseMove={handleMouseMove}
+          onMouseLeave={handleMouseLeave}
+          onTouchStart={handleTouchStart}
           style={{
-            width: `${columns * cellSize}px`,
-            height: `${rows * cellSize}px`,
-            imageRendering: 'pixelated',
-            cursor: 'default'
+            width: `${columns * cellSize}px`, height: `${rows * cellSize}px`,
+            imageRendering: 'pixelated', cursor: 'default',
           }}
         />
       </div>
-      <div
-        style={{
-          position: 'fixed',
-          bottom: '20px',
-          left: '20px',
-          zIndex: 1000,
-          backgroundColor: 'transparent'
-        }}
-        className="p-2"
-      >
+      {zoomViewer.visible && (
+        <div className="zoom-viewer" style={{
+            left: `${zoomViewer.x}px`, top: `${zoomViewer.y}px`,
+            backgroundImage: `url(${zoomViewer.imageUrl})`,
+            ...zoomViewer.style,
+          }}
+        />
+      )}
+      <div style={{ position: 'fixed', bottom: '20px', left: '20px', zIndex: 1000, backgroundColor: 'rgba(255, 255, 255, 0.7)', borderRadius: '8px', backdropFilter: 'blur(4px)', }} className="p-2 shadow-lg">
         <div className="flex items-center space-x-2">
-          <span className="text-black">{Math.round(zoom * 100)}%</span>
-          <input
-            type="range"
-            min={initialZoom.toString()}
-            max="3"
-            step="0.01"
-            value={zoom}
-            onChange={(e) => setZoom(Number(e.target.value))}
-            className="w-full"
-          />
-          <span className="text-black">Zoom</span>
+          <span className="text-black font-medium">{Math.round(zoom * 100)}%</span>
+          <input type="range" min={initialZoom.toString()} max="3" step="0.01" value={zoom} onChange={(e) => setZoom(Number(e.target.value))} className="w-full" />
+          <span className="text-black font-medium">Zoom</span>
         </div>
       </div>
     </div>
