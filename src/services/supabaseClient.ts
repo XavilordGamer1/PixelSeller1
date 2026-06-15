@@ -29,9 +29,5 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = 'https://thmcvzigpobvecajslut.supabase.co';
 const supabaseKey = 'sb_publishable_YrtW-ldNyjskTtOr-kG3GQ_N1EL5y2M';
 
-if (!supabaseUrl || !supabaseKey) {
-  throw new Error('⚠️ ¡Error! Las credenciales de Supabase no están configuradas.');
-}
-
 export const supabase = createClient(supabaseUrl, supabaseKey);
 
