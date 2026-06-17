@@ -15,7 +15,7 @@
 //   process.env.SUPABASE_ANON_KEY;
 
 // if (!url || !anonKey) {
-//   throw new Error('⚠️  SUPABASE_URL / SUPABASE_ANON_KEY no definidos');
+//   throw new Error(' SUPABASE_URL / SUPABASE_ANON_KEY no definidos');
 // }
 
 // export const supabase = createClient(url, anonKey);
